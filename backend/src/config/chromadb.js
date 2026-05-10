@@ -1,44 +1,43 @@
-const axios = require('axios');
+const { ChromaClient } = require('chromadb');
 
 const CHROMA_URL = process.env.CHROMA_URL || 'http://localhost:8000';
 const COLLECTION_NAME = 'neurodesk_documents';
 
 class ChromaService {
   constructor() {
-    this.baseUrl = CHROMA_URL;
-    this.collectionId = null;
+    this.client = new ChromaClient({ path: CHROMA_URL });
+    this.collection = null;
     this.available = false;
   }
 
   async initialize() {
     try {
-      await axios.get(`${this.baseUrl}/api/v1/heartbeat`, { timeout: 3000 });
+      await this.client.heartbeat();
       await this.ensureCollection();
       this.available = true;
       console.log('✅ ChromaDB connected successfully');
     } catch (err) {
       this.available = false;
-      console.log('⚠️  ChromaDB unavailable - using in-memory vector store');
+      console.log(`⚠️  ChromaDB unavailable (${err.message}) - using in-memory vector store`);
     }
   }
 
   async ensureCollection() {
     try {
-      const res = await axios.get(`${this.baseUrl}/api/v1/collections/${COLLECTION_NAME}`);
-      this.collectionId = res.data.id;
-    } catch {
-      const res = await axios.post(`${this.baseUrl}/api/v1/collections`, {
+      this.collection = await this.client.getOrCreateCollection({
         name: COLLECTION_NAME,
-        metadata: { description: 'NeuroDesk AI document embeddings' }
+        metadata: { "description": "NeuroDesk AI document embeddings" },
+        embeddingFunction: { generate: (texts) => texts.map(() => []) }
       });
-      this.collectionId = res.data.id;
+    } catch (err) {
+      throw err;
     }
   }
 
   async addDocuments(documents) {
     if (!this.available) return this._inMemoryAdd(documents);
     try {
-      await axios.post(`${this.baseUrl}/api/v1/collections/${this.collectionId}/add`, {
+      await this.collection.add({
         ids: documents.map(d => d.id),
         embeddings: documents.map(d => d.embedding),
         documents: documents.map(d => d.text),
@@ -54,19 +53,14 @@ class ChromaService {
   async queryDocuments(embedding, nResults = 5, where = {}) {
     if (!this.available) return this._inMemoryQuery(embedding, nResults);
     try {
-      const body = {
-        query_embeddings: [embedding],
-        n_results: nResults,
-        include: ['documents', 'metadatas', 'distances']
-      };
-      if (Object.keys(where).length > 0) body.where = where;
-
-      const res = await axios.post(
-        `${this.baseUrl}/api/v1/collections/${this.collectionId}/query`,
-        body
-      );
-      const results = res.data;
+      const results = await this.collection.query({
+        queryEmbeddings: [embedding],
+        nResults: nResults,
+        where: Object.keys(where).length > 0 ? where : undefined,
+      });
+      
       if (!results.documents || !results.documents[0]) return [];
+      
       return results.documents[0].map((doc, i) => ({
         text: doc,
         metadata: results.metadatas[0][i],
@@ -82,7 +76,7 @@ class ChromaService {
   async deleteByDocumentId(documentId) {
     if (!this.available) return;
     try {
-      await axios.post(`${this.baseUrl}/api/v1/collections/${this.collectionId}/delete`, {
+      await this.collection.delete({
         where: { document_id: documentId }
       });
     } catch (err) {

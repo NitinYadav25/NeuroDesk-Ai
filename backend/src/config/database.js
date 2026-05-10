@@ -15,12 +15,15 @@ pool.on('error', (err) => {
   console.error('Unexpected error on idle client', err);
 });
 
+let isAvailable = true;
+
 const initializeDatabase = async () => {
   let client;
   try {
     client = await pool.connect();
   } catch (err) {
-    console.log('⚠️  PostgreSQL unavailable - using in-memory storage');
+    console.log(`⚠️  PostgreSQL unavailable (${err.message}) - using in-memory storage`);
+    isAvailable = false;
     return;
   }
   try {
@@ -104,9 +107,16 @@ const initializeDatabase = async () => {
   } catch (err) {
     console.error('❌ Database initialization error:', err.message);
     console.log('⚠️  Running without PostgreSQL - using in-memory storage');
+    isAvailable = false;
   } finally {
-    client.release();
+    if (client) client.release();
   }
 };
 
-module.exports = { pool, initializeDatabase };
+const originalQuery = pool.query.bind(pool);
+pool.query = async (...args) => {
+  if (!isAvailable) throw new Error('PostgreSQL unavailable - using in-memory storage');
+  return originalQuery(...args);
+};
+
+module.exports = { pool, initializeDatabase, isAvailable: () => isAvailable };
