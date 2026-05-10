@@ -3,12 +3,18 @@ const fs = require('fs');
 const path = require('path');
 const aiService = require('./aiService');
 const chromaService = require('../config/chromadb');
+const { pool } = require('../config/database');
 const { v4: uuidv4 } = require('uuid');
 
 const CHUNK_SIZE = 1000;
 const CHUNK_OVERLAP = 200;
 
 class DocumentService {
+  constructor() {
+    this.queue = [];
+    this.isProcessing = false;
+  }
+
   chunkText(text) {
     const chunks = [];
     let start = 0;
@@ -32,9 +38,12 @@ class DocumentService {
   async extractText(filePath, fileType) {
     try {
       if (fileType === 'pdf' || filePath.endsWith('.pdf')) {
+        // Read file in chunks if possible, but pdf-parse needs a buffer
         const buffer = fs.readFileSync(filePath);
         const data = await pdfParse(buffer);
-        return data.text;
+        // Clear buffer reference
+        const text = data.text;
+        return text;
       } else {
         return fs.readFileSync(filePath, 'utf8');
       }
@@ -44,37 +53,82 @@ class DocumentService {
     }
   }
 
+  // Queue wrapper to prevent multiple heavy extractions at once
   async processDocument(documentId, userId, filePath, fileType, title) {
-    try {
-      const text = await this.extractText(filePath, fileType);
-      const chunks = this.chunkText(text);
-      console.log(`Processing ${chunks.length} chunks for document ${documentId}`);
+    return new Promise((resolve, reject) => {
+      this.queue.push({ documentId, userId, filePath, fileType, title, resolve, reject });
+      this.processQueue();
+    });
+  }
 
-      const documents = [];
-      for (let i = 0; i < chunks.length; i++) {
-        const chunk = chunks[i];
-        const embedding = await aiService.generateEmbedding(chunk);
-        documents.push({
-          id: `${documentId}_chunk_${i}`,
-          text: chunk,
-          embedding,
-          metadata: {
-            document_id: documentId,
-            user_id: userId,
-            title,
-            chunk_index: i,
-            total_chunks: chunks.length
+  async processQueue() {
+    if (this.isProcessing || this.queue.length === 0) return;
+    this.isProcessing = true;
+    const job = this.queue.shift();
+
+    try {
+      console.log(`🚀 Starting processing for ${job.title} (${job.documentId})...`);
+      let text = await this.extractText(job.filePath, job.fileType);
+      const chunks = this.chunkText(text);
+      
+      // CRITICAL: Clear text reference to free memory
+      text = null;
+      if (global.gc) global.gc();
+
+      console.log(`📄 Document chunked into ${chunks.length} pieces.`);
+
+      const BATCH_SIZE = 15; // Smaller batch size for stability
+      let chunksProcessed = 0;
+
+      for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+        const batchChunks = chunks.slice(i, i + BATCH_SIZE);
+        const documents = [];
+
+        for (let j = 0; j < batchChunks.length; j++) {
+          const chunk = batchChunks[j];
+          const embedding = await aiService.generateEmbedding(chunk);
+          
+          const chunkId = `${job.documentId}_chunk_${i + j}`;
+          documents.push({
+            id: chunkId,
+            text: chunk,
+            embedding,
+            metadata: {
+              document_id: job.documentId,
+              user_id: job.userId,
+              title: job.title,
+              chunk_index: i + j,
+              total_chunks: chunks.length
+            }
+          });
+
+          // Persistent storage in Postgres
+          try {
+            await pool.query(
+              'INSERT INTO document_chunks (document_id, chunk_index, content) VALUES ($1, $2, $3)',
+              [job.documentId, i + j, chunk]
+            );
+          } catch (pgErr) {
+            console.error(`  ⚠️  Postgres chunk error:`, pgErr.message);
           }
-        });
-        // Small delay to avoid overwhelming the embedding service
-        if (i % 5 === 0 && i > 0) await new Promise(r => setTimeout(r, 500));
+        }
+
+        await chromaService.addDocuments(documents);
+        chunksProcessed += batchChunks.length;
+        console.log(`  ✅ Batch ${Math.floor(i / BATCH_SIZE) + 1} done (${chunksProcessed}/${chunks.length})`);
+        
+        // Brief rest to let event loop and GC breathe
+        await new Promise(r => setTimeout(r, 300));
+        if (global.gc) global.gc();
       }
 
-      await chromaService.addDocuments(documents);
-      return { success: true, chunksProcessed: chunks.length, textLength: text.length };
+      job.resolve({ success: true, chunksProcessed: chunks.length });
     } catch (err) {
-      console.error('Document processing error:', err.message);
-      throw err;
+      console.error(`❌ Job failed for ${job.documentId}:`, err.message);
+      job.reject(err);
+    } finally {
+      this.isProcessing = false;
+      this.processQueue(); // Process next in queue
     }
   }
 
@@ -92,13 +146,12 @@ class DocumentService {
     const messages = [
       {
         role: 'user',
-        content: `Please provide a comprehensive summary of the following document. Include: key topics, main insights, important findings, and actionable takeaways.\n\nDocument:\n${truncated}`
+        content: `Summarize this document:\n\n${truncated}`
       }
     ];
 
     let summary = '';
-    for await (const chunk of aiService.streamResponse(messages, model, 
-      'You are an expert document analyst. Provide clear, structured summaries.')) {
+    for await (const chunk of aiService.streamResponse(messages, model, 'Summarize clearly.')) {
       summary += chunk;
     }
     return summary;
@@ -107,3 +160,4 @@ class DocumentService {
 
 const documentService = new DocumentService();
 module.exports = documentService;
+

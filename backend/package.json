@@ -4,8 +4,8 @@
   "description": "NeuroDesk AI - Knowledge Operating System Backend",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
+    "start": "node --max-old-space-size=4096 --expose-gc src/server.js",
+    "dev": "nodemon --max-old-space-size=4096 --expose-gc src/server.js",
     "test": "echo \"No tests yet\""
   },
   "dependencies": {

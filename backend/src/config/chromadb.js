@@ -26,8 +26,7 @@ class ChromaService {
     try {
       this.collection = await this.client.getOrCreateCollection({
         name: COLLECTION_NAME,
-        metadata: { "description": "NeuroDesk AI document embeddings" },
-        embeddingFunction: { generate: (texts) => texts.map(() => []) }
+        metadata: { "description": "NeuroDesk AI document embeddings" }
       });
     } catch (err) {
       throw err;

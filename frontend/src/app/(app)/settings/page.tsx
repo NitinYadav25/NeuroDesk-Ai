@@ -32,7 +32,7 @@ export default function SettingsPage() {
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-linear-to-br from-slate-600 to-slate-700 flex items-center justify-center">
             <Settings className="w-6 h-6 text-white" />
           </div>
           <div>
@@ -185,7 +185,7 @@ export default function SettingsPage() {
 function ServiceCard({ name, desc, active, models, badge, badgeColor, setupUrl, setupHint }: any) {
   return (
     <div className={`flex items-start gap-4 p-4 rounded-xl border ${active ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-slate-800 bg-slate-800/20'}`}>
-      <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center mt-0.5 ${active ? 'bg-emerald-500/20' : 'bg-slate-800'}`}>
+      <div className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center mt-0.5 ${active ? 'bg-emerald-500/20' : 'bg-slate-800'}`}>
         {active ? <CheckCircle className="w-4 h-4 text-emerald-400" /> : <AlertCircle className="w-4 h-4 text-slate-600" />}
       </div>
       <div className="flex-1 min-w-0">

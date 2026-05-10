@@ -7,17 +7,18 @@ import remarkGfm from 'remark-gfm'
 import { API_URL } from '@/lib/api'
 import {
   Send, Plus, Trash2, MessageSquare, Bot, User, Loader2,
-  ChevronDown, Cpu, Eye, EyeOff, FileText, Zap, X
+  ChevronDown, Cpu, Eye, EyeOff, FileText, Zap, X, Copy, Check,
+  Sparkles, Shield, Activity
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { motion, AnimatePresence } from 'framer-motion'
 
 const MODELS = ['mistral', 'llama3', 'gemma', 'llama2', 'codellama']
 const AGENTS = [
-  { id: 'general', label: 'Auto', icon: '🤖' },
-  { id: 'research', label: 'Research', icon: '🔬' },
-  { id: 'summary', label: 'Summary', icon: '📝' },
-  { id: 'code', label: 'Code', icon: '💻' },
-  { id: 'decision', label: 'Decision', icon: '🎯' },
+  { id: 'general', label: 'Auto', icon: <Sparkles className="w-3.5 h-3.5" /> },
+  { id: 'research', label: 'Research', icon: <Shield className="w-3.5 h-3.5" /> },
+  { id: 'summary', label: 'Summary', icon: <FileText className="w-3.5 h-3.5" /> },
+  { id: 'code', label: 'Code', icon: <Cpu className="w-3.5 h-3.5" /> },
 ]
 
 export default function ChatPage() {
@@ -32,9 +33,9 @@ export default function ChatPage() {
   const [input, setInput] = useState('')
   const [selectedAgent, setSelectedAgent] = useState('general')
   const [streamingText, setStreamingText] = useState('')
-  const [currentAgent, setCurrentAgent] = useState<any>(null)
-  const [sources, setSources] = useState<any[]>([])
-  const [documents, setDocuments] = useState<any[]>([])
+  const [currentAgent, setCurrentAgent] = useState<{name: string, icon: string} | null>(null)
+  const [sources, setSources] = useState<{title: string}[]>([])
+  const [documents, setDocuments] = useState<{id: string, title: string, embedding_status: string}[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -141,8 +142,9 @@ export default function ChatPage() {
       if (accumulated) {
         addMessage({ id: (Date.now() + 1).toString(), role: 'assistant', content: accumulated, created_at: new Date().toISOString() })
       }
-    } catch (err: any) {
-      toast.error('Chat error: ' + err.message)
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      toast.error('Chat error: ' + errorMessage)
     } finally {
       setIsStreaming(false)
       setStreamingText('')
@@ -154,28 +156,37 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div className="flex h-full overflow-hidden bg-transparent relative">
+      {/* Background Neural Glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-600/5 blur-[120px] rounded-full pointer-events-none" />
+
       {/* Conversation Sidebar */}
-      <div className="w-60 flex-shrink-0 flex flex-col border-r border-[rgba(99,102,241,0.1)] bg-[#0d0d18]">
-        <div className="p-3 border-b border-[rgba(99,102,241,0.1)]">
+      <div className="w-72 shrink-0 flex flex-col border-r border-white/5 bg-bg-secondary/50 backdrop-blur-xl relative z-10">
+        <div className="p-6 border-b border-white/5">
           <button onClick={createConversation}
-            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/20 text-indigo-400 text-sm font-medium transition-all">
-            <Plus className="w-4 h-4" /> New Chat
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/20 text-indigo-400 text-sm font-bold transition-all group">
+            <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform duration-300" /> New Neural Thread
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+        <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {conversations.length === 0 ? (
-            <div className="text-center text-slate-600 text-xs py-8 px-4">
-              <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-30" />
-              No conversations yet
+            <div className="text-center text-slate-600 text-xs py-12 px-4">
+              <MessageSquare className="w-10 h-10 mx-auto mb-3 opacity-20" />
+              Initial threads required.
             </div>
           ) : conversations.map(conv => (
             <div key={conv.id} onClick={() => setActiveConversation(conv)}
-              className={`group flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-all ${
-                activeConversation?.id === conv.id ? 'bg-indigo-500/15 border border-indigo-500/20' : 'hover:bg-slate-800/40'}`}>
-              <MessageSquare className="w-4 h-4 text-slate-600 flex-shrink-0" />
-              <span className="flex-1 text-xs text-slate-400 truncate">{conv.title || 'New Conversation'}</span>
-              <button onClick={(e) => deleteConversation(conv.id, e)} className="opacity-0 group-hover:opacity-100 text-slate-700 hover:text-rose-400 transition-all">
+              className={`group flex items-center gap-3 px-4 py-3 rounded-2xl cursor-pointer transition-all duration-300 ${
+                activeConversation?.id === conv.id 
+                  ? 'bg-indigo-600/10 border border-indigo-500/20 shadow-lg shadow-indigo-500/5' 
+                  : 'hover:bg-white/5 border border-transparent'}`}>
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${activeConversation?.id === conv.id ? 'bg-indigo-500/20 text-indigo-400' : 'bg-slate-800/50 text-slate-600'}`}>
+                <MessageSquare className="w-4 h-4" />
+              </div>
+              <span className={`flex-1 text-xs font-bold truncate transition-colors ${activeConversation?.id === conv.id ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'}`}>
+                {conv.title || 'New Thread'}
+              </span>
+              <button onClick={(e) => deleteConversation(conv.id, e)} className="opacity-0 group-hover:opacity-100 text-slate-700 hover:text-rose-400 transition-all p-1 hover:bg-rose-500/10 rounded-lg">
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -184,64 +195,71 @@ export default function ChatPage() {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
-        {/* Top Bar */}
-        <div className="flex items-center gap-3 px-5 py-3 border-b border-[rgba(99,102,241,0.1)] bg-[#0d0d18]/50">
-          {/* Agent selector */}
-          <div className="flex items-center gap-1 bg-slate-800/50 rounded-lg p-1">
+      <div className="flex-1 flex flex-col relative z-10">
+        {/* Top Neural Bar */}
+        <div className="flex items-center gap-4 px-8 py-4 border-b border-white/5 bg-bg-secondary/30 backdrop-blur-md">
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-white/5 border border-white/5">
             {AGENTS.map(a => (
               <button key={a.id} onClick={() => setSelectedAgent(a.id)}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${selectedAgent === a.id ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}>
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-widest transition-all ${selectedAgent === a.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}>
                 {a.icon} {a.label}
               </button>
             ))}
           </div>
-          <div className="ml-auto flex items-center gap-3">
-            {/* Model selector */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700/50">
-              <Cpu className="w-4 h-4 text-slate-500" />
+          
+          <div className="ml-auto flex items-center gap-4">
+            <div className="flex items-center gap-3 px-4 py-1.5 rounded-xl bg-white/5 border border-white/5">
+              <Cpu className="w-4 h-4 text-indigo-400" />
               <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}
-                className="bg-transparent text-slate-400 text-xs outline-none">
+                className="bg-transparent text-slate-300 text-[11px] font-bold uppercase tracking-wider outline-none cursor-pointer">
                 {MODELS.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
             </div>
-            {/* Explain reasoning toggle */}
             <button onClick={() => setExplainReasoning(!explainReasoning)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${explainReasoning ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-slate-800/50 text-slate-500 hover:text-slate-300'}`}>
-              {explainReasoning ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-              Explain
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all ${explainReasoning ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-lg shadow-amber-500/5' : 'bg-white/5 text-slate-500 hover:text-slate-300 border border-white/5'}`}>
+              {explainReasoning ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+              Deep Insight
             </button>
           </div>
         </div>
 
-        {/* Document selection bar */}
-        {documents.length > 0 && (
-          <div className="px-5 py-2 border-b border-[rgba(99,102,241,0.08)] bg-[#0d0d18]/30 flex items-center gap-2 overflow-x-auto">
-            <FileText className="w-4 h-4 text-slate-600 flex-shrink-0" />
-            <span className="text-xs text-slate-600 flex-shrink-0">Context:</span>
-            {documents.map(doc => (
-              <button key={doc.id} onClick={() => toggleDocumentSelection(doc.id)}
-                className={`flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-all ${
-                  selectedDocuments.includes(doc.id) ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800/40 text-slate-500 hover:text-slate-300'}`}>
-                <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                {doc.title?.slice(0, 25)}{(doc.title?.length || 0) > 25 ? '…' : ''}
-              </button>
-            ))}
-          </div>
-        )}
+        {/* Context Bar */}
+        <AnimatePresence>
+          {documents.length > 0 && (
+            <motion.div 
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              className="px-8 py-3 border-b border-white/5 bg-white/5 flex items-center gap-4 overflow-x-auto">
+              <div className="flex items-center gap-2 shrink-0">
+                <Shield className="w-4 h-4 text-emerald-400" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Active Knowledge:</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {documents.map(doc => (
+                  <button key={doc.id} onClick={() => toggleDocumentSelection(doc.id)}
+                    className={`shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      selectedDocuments.includes(doc.id) ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-white/5 text-slate-500 hover:text-slate-300 border border-white/5'}`}>
+                    <div className={`w-1.5 h-1.5 rounded-full ${selectedDocuments.includes(doc.id) ? 'bg-emerald-400 animate-pulse' : 'bg-slate-700'}`} />
+                    {doc.title?.slice(0, 30)}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+        <div className="flex-1 overflow-y-auto px-8 lg:px-24 py-10 space-y-10 scrollbar-hide">
           {!activeConversation ? (
-            <div className="flex flex-col items-center justify-center h-full text-center">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/20">
-                <Bot className="w-9 h-9 text-white" />
+            <div className="flex flex-col items-center justify-center h-full text-center max-w-sm mx-auto">
+              <div className="w-20 h-20 rounded-4xl bg-linear-to-br from-indigo-600 to-violet-600 flex items-center justify-center mb-8 shadow-2xl shadow-indigo-500/40 animate-float">
+                <Bot className="w-10 h-10 text-white" />
               </div>
-              <h2 className="text-xl font-bold text-slate-200 mb-2">Start a New Chat</h2>
-              <p className="text-slate-500 text-sm mb-6">Ask anything — your AI agents are ready</p>
+              <h2 className="text-3xl font-bold text-white mb-4 tracking-tight">Neural Core Interface</h2>
+              <p className="text-slate-500 text-sm mb-10 leading-relaxed italic">"Awaiting initial transmission. Accessing local knowledge cluster..."</p>
               <button onClick={createConversation}
-                className="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-medium hover:opacity-90 transition-opacity glow-sm">
-                <span className="flex items-center gap-2"><Plus className="w-4 h-4" /> New Conversation</span>
+                className="w-full px-8 py-4 rounded-2xl bg-white text-black font-bold hover:scale-105 transition-all shadow-xl shadow-white/5">
+                Initialize Session
               </button>
             </div>
           ) : (
@@ -250,29 +268,33 @@ export default function ChatPage() {
                 <MessageBubble key={msg.id || i} role={msg.role} content={msg.content} />
               ))}
               {isStreaming && (
-                <div>
-                  {currentAgent && (
-                    <div className="flex items-center gap-2 mb-2 text-xs text-slate-600">
-                      <span>{currentAgent.icon}</span>
-                      <span>{currentAgent.name} is working…</span>
-                    </div>
-                  )}
-                  {sources.length > 0 && (
-                    <div className="flex items-center gap-2 mb-3 flex-wrap">
-                      {sources.map((s, i) => (
-                        <span key={i} className="text-xs px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                          📄 {s.title?.slice(0, 30)}
-                        </span>
-                      ))}
+                <div className="space-y-4">
+                  {(currentAgent || sources.length > 0) && (
+                    <div className="flex flex-col gap-2 p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 max-w-[80%]">
+                      {currentAgent && (
+                        <div className="flex items-center gap-3 text-xs text-indigo-400 font-bold uppercase tracking-widest">
+                          <Activity className="w-3.5 h-3.5 animate-spin" />
+                          <span>{currentAgent.name} Syncing...</span>
+                        </div>
+                      )}
+                      {sources.length > 0 && (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {sources.map((s, i) => (
+                            <span key={i} className="text-[10px] px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold uppercase tracking-tighter">
+                              Ref: {s.title?.slice(0, 30)}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                   {streamingText ? <MessageBubble role="assistant" content={streamingText} isStreaming /> : (
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center">
-                        <Bot className="w-4 h-4 text-white" />
+                    <div className="flex items-center gap-4 opacity-50">
+                      <div className="w-10 h-10 rounded-2xl bg-slate-800 flex items-center justify-center">
+                        <Bot className="w-5 h-5 text-indigo-400 animate-pulse" />
                       </div>
-                      <div className="flex gap-1">
-                        {[0, 1, 2].map(i => <div key={i} className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />)}
+                      <div className="flex gap-1.5">
+                        {[0, 1, 2].map(i => <div key={i} className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />)}
                       </div>
                     </div>
                   )}
@@ -283,27 +305,34 @@ export default function ChatPage() {
           )}
         </div>
 
-        {/* Input Area */}
+        {/* Neural Input Interface */}
         {activeConversation && (
-          <div className="p-4 border-t border-[rgba(99,102,241,0.1)] bg-[#0d0d18]/50">
-            <div className="flex gap-3 items-end glass rounded-2xl p-3">
-              <textarea ref={textareaRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown}
-                placeholder="Ask anything... (Shift+Enter for new line)"
-                rows={1} style={{ resize: 'none', minHeight: '44px', maxHeight: '180px' }}
-                className="flex-1 bg-transparent text-slate-200 placeholder-slate-600 outline-none text-sm leading-relaxed"
-                onInput={(e) => {
-                  const t = e.target as HTMLTextAreaElement
-                  t.style.height = 'auto'
-                  t.style.height = Math.min(t.scrollHeight, 180) + 'px'
-                }} />
-              <button onClick={sendMessage} disabled={!input.trim() || isStreaming || !activeConversation}
-                className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-indigo-500/20">
-                {isStreaming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              </button>
+          <div className="px-8 lg:px-24 pb-8 pt-4">
+            <div className="relative glass rounded-3xl p-2 border-white/10 shadow-2xl focus-within:border-indigo-500/30 transition-all duration-500 group">
+              {/* Glow background for input */}
+              <div className="absolute inset-0 bg-indigo-500/0 group-focus-within:bg-indigo-500/5 rounded-3xl blur-xl transition-all duration-700" />
+              
+              <div className="relative z-10 flex gap-4 items-end px-4 py-2">
+                <textarea ref={textareaRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown}
+                  placeholder="Transmit message to neural core..."
+                  rows={1} style={{ resize: 'none', minHeight: '44px', maxHeight: '200px' }}
+                  className="flex-1 bg-transparent text-slate-200 placeholder-slate-600 outline-none text-sm leading-relaxed py-2 font-medium"
+                  onInput={(e) => {
+                    const t = e.target as HTMLTextAreaElement
+                    t.style.height = 'auto'
+                    t.style.height = Math.min(t.scrollHeight, 200) + 'px'
+                  }} />
+                <button onClick={sendMessage} disabled={!input.trim() || isStreaming || !activeConversation}
+                  className="shrink-0 w-12 h-12 rounded-2xl bg-white text-black flex items-center justify-center hover:scale-105 transition-all disabled:opacity-20 disabled:scale-100 disabled:cursor-not-allowed shadow-xl shadow-white/5">
+                  {isStreaming ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
-            <p className="text-center text-slate-700 text-xs mt-2">
-              {selectedDocuments.length > 0 ? `📚 Using ${selectedDocuments.length} document(s) as context` : 'No documents selected — using general knowledge'}
-            </p>
+            <div className="flex items-center justify-center gap-4 mt-4 px-4 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-700">
+              <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> Encrypted Channel</span>
+              <span className="w-1 h-1 rounded-full bg-slate-800" />
+              <span className="flex items-center gap-1"><Cpu className="w-3 h-3" /> Local Compute</span>
+            </div>
           </div>
         )}
       </div>
@@ -313,23 +342,78 @@ export default function ChatPage() {
 
 function MessageBubble({ role, content, isStreaming }: { role: string; content: string; isStreaming?: boolean }) {
   const isUser = role === 'user'
+  const [copied, setCopied] = useState(false)
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+    toast.success('Vectorized content copied')
+  }
+
   return (
-    <div className={`flex gap-3 animate-fade-in ${isUser ? 'flex-row-reverse' : ''}`}>
-      <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-sm ${
-        isUser ? 'bg-indigo-600' : 'bg-gradient-to-br from-violet-600 to-indigo-600'}`}>
-        {isUser ? <User className="w-4 h-4 text-white" /> : <Bot className="w-4 h-4 text-white" />}
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`flex gap-6 group/msg ${isUser ? 'flex-row-reverse' : ''}`}>
+      <div className={`w-10 h-10 rounded-2xl shrink-0 flex items-center justify-center shadow-lg transition-all duration-500 ${
+        isUser ? 'bg-white text-black' : 'bg-linear-to-br from-indigo-600 to-violet-600 text-white shadow-indigo-500/20'}`}>
+        {isUser ? <User className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
       </div>
-      <div className={`max-w-[75%] rounded-2xl px-4 py-3 ${
-        isUser ? 'bg-indigo-600/20 border border-indigo-500/20 text-slate-200' : 'glass text-slate-200'
-      } ${isStreaming ? 'typing-cursor' : ''}`}>
-        {isUser ? (
-          <p className="text-sm whitespace-pre-wrap">{content}</p>
-        ) : (
-          <div className="prose-dark text-sm">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-          </div>
-        )}
+      <div className={`relative max-w-[85%] lg:max-w-[80%] ${isUser ? 'text-right' : 'text-left'}`}>
+        <div className={`rounded-3xl px-6 py-4 shadow-2xl transition-all duration-500 ${
+          isUser 
+            ? 'bg-white/5 border border-white/5 text-slate-200 rounded-tr-none' 
+            : 'glass text-slate-200 rounded-tl-none group-hover/msg:border-indigo-500/20'
+        } ${isStreaming ? 'typing-cursor' : ''}`}>
+          {isUser ? (
+            <p className="text-sm font-medium leading-relaxed whitespace-pre-wrap">{content}</p>
+          ) : (
+            <div className="prose-dark text-sm leading-relaxed font-medium">
+              <ReactMarkdown 
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  code({ node, inline, className, children, ...props }: any) {
+                    const match = /language-(\w+)/.exec(className || '')
+                    const codeString = String(children).replace(/\n$/, '')
+                    return !inline && match ? (
+                      <div className="relative group/code my-6 rounded-2xl overflow-hidden border border-white/5">
+                        <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/5">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{match[1]}</span>
+                          <button onClick={() => copyToClipboard(codeString)} className="p-1.5 rounded-lg hover:bg-white/5 text-slate-500 hover:text-white transition-all">
+                            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                        <pre className="bg-[#05050a]! p-6! m-0! overflow-x-auto" {...props}>
+                          <code className={className}>{children}</code>
+                        </pre>
+                      </div>
+                    ) : (
+                      <code className="px-1.5 py-0.5 rounded-md bg-white/5 text-indigo-300 font-mono text-xs border border-white/5" {...props}>{children}</code>
+                    )
+                  }
+                }}
+              >
+                {content}
+              </ReactMarkdown>
+            </div>
+          )}
+        </div>
+        
+        {/* Message Actions */}
+        <div className={`mt-2 flex items-center gap-4 transition-all duration-500 opacity-0 group-hover/msg:opacity-100 ${isUser ? 'justify-end' : 'justify-start'}`}>
+          {!isStreaming && (
+            <button onClick={() => copyToClipboard(content)}
+              className="text-[10px] font-bold uppercase tracking-widest text-slate-600 hover:text-indigo-400 transition-colors flex items-center gap-1.5">
+              {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+              {copied ? 'Copied' : 'Vector Copy'}
+            </button>
+          )}
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-700">
+            {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </div>
       </div>
-    </div>
+    </motion.div>
   )
 }

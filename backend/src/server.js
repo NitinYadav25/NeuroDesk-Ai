@@ -32,9 +32,9 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/chat', require('./routes/chat'));
+app.use('/api/memory', require('./routes/memory'));
 app.use('/api/documents', require('./routes/documents'));
 app.use('/api/notes', require('./routes/notes'));
-app.use('/api/memory', require('./routes/memory'));
 
 // ── Health Check ─────────────────────────────────────────────────────────────
 app.get('/api/health', async (req, res) => {

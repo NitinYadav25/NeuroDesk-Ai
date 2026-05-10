@@ -35,9 +35,12 @@ export const useAuthStore = create<AuthState>()(
             localStorage.setItem('nd_user', JSON.stringify(user))
           }
           set({ user, token, isLoading: false })
-        } catch (err: any) {
+        } catch (err: unknown) {
           set({ isLoading: false })
-          throw new Error(err.response?.data?.error || 'Login failed')
+          if (err instanceof Error) {
+            throw err
+          }
+          throw new Error('Login failed')
         }
       },
       register: async (email, username, password) => {
@@ -50,9 +53,12 @@ export const useAuthStore = create<AuthState>()(
             localStorage.setItem('nd_user', JSON.stringify(user))
           }
           set({ user, token, isLoading: false })
-        } catch (err: any) {
+        } catch (err: unknown) {
           set({ isLoading: false })
-          throw new Error(err.response?.data?.error || 'Registration failed')
+          if (err instanceof Error) {
+            throw err
+          }
+          throw new Error('Registration failed')
         }
       },
       logout: () => {
@@ -87,7 +93,7 @@ interface Message {
   role: 'user' | 'assistant'
   content: string
   created_at: string
-  metadata?: any
+  metadata?: Record<string, unknown>
 }
 
 interface Document {
@@ -108,6 +114,7 @@ interface Note {
   created_at: string
   updated_at: string
 }
+
 
 interface AppState {
   conversations: Conversation[]

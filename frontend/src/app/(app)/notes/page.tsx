@@ -127,15 +127,19 @@ export default function NotesPage() {
         setGeneratedContent('')
         toast.success('AI note created!')
       }
-    } catch (err: any) {
-      toast.error('Failed to generate: ' + err.message)
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        toast.error('Failed to generate: ' + err.message)
+      } else {
+        toast.error('Failed to generate: ' + String(err))
+      }
     } finally { setGenerating(false) }
   }
 
   return (
     <div className="flex h-full overflow-hidden">
       {/* Notes List */}
-      <div className="w-72 flex-shrink-0 flex flex-col border-r border-[rgba(99,102,241,0.1)] bg-[#0d0d18]">
+      <div className="w-72 shrink-0 flex flex-col border-r border-[rgba(99,102,241,0.1)] bg-[#0d0d18]">
         <div className="p-3 border-b border-[rgba(99,102,241,0.1)] flex gap-2">
           <button onClick={createNote} className="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/20 text-indigo-400 text-sm font-medium transition-all">
             <Plus className="w-4 h-4" /> New Note
@@ -267,7 +271,7 @@ export default function NotesPage() {
               </div>
             )}
             <button onClick={generateAINote} disabled={generating || !aiPrompt.trim()}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-medium hover:opacity-90 transition-all disabled:opacity-60">
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 text-white font-medium hover:opacity-90 transition-all disabled:opacity-60">
               {generating ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</> : <><Sparkles className="w-4 h-4" /> Generate Note</>}
             </button>
           </div>

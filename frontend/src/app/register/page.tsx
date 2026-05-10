@@ -3,7 +3,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '@/store'
-import { Brain, Eye, EyeOff, Loader2, ArrowRight, User, Mail, Lock } from 'lucide-react'
+import { Brain, Eye, EyeOff, Loader2, ArrowRight, Shield, User, Mail, Lock, Cpu } from 'lucide-react'
+import { motion } from 'framer-motion'
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('')
@@ -20,58 +21,93 @@ export default function RegisterPage() {
     try {
       await register(email, username, password)
       router.push('/dashboard')
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message)
+      } else {
+        setError(String(err))
+      }
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
-      <div className="absolute inset-0">
-        <div className="absolute top-1/3 right-1/3 w-80 h-80 bg-violet-600/15 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/3 left-1/3 w-80 h-80 bg-cyan-600/10 rounded-full blur-3xl" />
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(99,102,241,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(99,102,241,0.03)_1px,transparent_1px)] bg-[size:64px_64px]" />
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-bg-primary">
+      {/* Background Neural Matrix */}
+      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-violet-600/10 blur-[120px] rounded-full animate-pulse-glow" />
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150 pointer-events-none" />
       </div>
 
-      <div className="relative w-full max-w-md px-6 animate-scale-in">
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center">
-              <Brain className="w-7 h-7 text-white" />
+      <div className="relative z-10 w-full max-w-md px-6">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-10"
+        >
+          <Link href="/" className="inline-flex items-center gap-3 mb-6 group">
+            <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-2xl shadow-indigo-500/20 group-hover:scale-110 transition-all duration-500">
+              <Brain className="w-8 h-8 text-white" />
             </div>
-            <span className="text-2xl font-bold gradient-text">NeuroDesk AI</span>
           </Link>
-          <h1 className="text-2xl font-bold text-slate-100 mt-4">Create your AI Brain</h1>
-          <p className="text-slate-500 mt-1">Free forever · No credit card needed</p>
-        </div>
+          <h1 className="text-4xl font-bold tracking-tighter text-white">Create Identity</h1>
+          <p className="text-slate-500 mt-2 font-medium tracking-tight">Initialize your node in the Neural Nexus</p>
+        </motion.div>
 
-        <div className="glass rounded-2xl p-8">
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-slate-400 mb-2">Username</label>
-              <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
-                <input type="text" value={username} onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Your name" required
-                  className="w-full pl-11 pr-4 py-3 rounded-xl bg-slate-800/60 border border-slate-700 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors" />
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.1 }}
+          className="glass rounded-[2.5rem] p-8 border-white/5 shadow-2xl"
+        >
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500 ml-1">Username</label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-4 flex items-center text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                  <User className="w-4 h-4" />
+                </div>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="neuro_pilot"
+                  required
+                  className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white/5 border border-white/5 text-white placeholder-slate-700 focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all font-medium"
+                />
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-400 mb-2">Email</label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com" required
-                  className="w-full pl-11 pr-4 py-3 rounded-xl bg-slate-800/60 border border-slate-700 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors" />
+
+            <div className="space-y-2">
+              <label className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500 ml-1">Email Address</label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-4 flex items-center text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                  <Mail className="w-4 h-4" />
+                </div>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@neural.net"
+                  required
+                  className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white/5 border border-white/5 text-white placeholder-slate-700 focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all font-medium"
+                />
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-400 mb-2">Password</label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
-                <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Min 6 characters" required minLength={6}
-                  className="w-full pl-11 pr-12 py-3 rounded-xl bg-slate-800/60 border border-slate-700 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors" />
+
+            <div className="space-y-2">
+              <label className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500 ml-1">Access Key</label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-4 flex items-center text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                  <Lock className="w-4 h-4" />
+                </div>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  required
+                  className="w-full pl-12 pr-12 py-4 rounded-2xl bg-white/5 border border-white/5 text-white placeholder-slate-700 focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all font-medium"
+                />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -79,19 +115,38 @@ export default function RegisterPage() {
             </div>
 
             {error && (
-              <div className="px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm">{error}</div>
+              <motion.div 
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[11px] font-bold uppercase tracking-widest text-center"
+              >
+                {error}
+              </motion.div>
             )}
 
-            <button type="submit" disabled={isLoading}
-              className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold hover:opacity-90 transition-all duration-200 disabled:opacity-60 glow-sm">
-              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Create Account <ArrowRight className="w-4 h-4" /></>}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full flex items-center justify-center gap-3 px-6 py-5 rounded-2xl bg-white text-black font-bold hover:scale-[1.02] active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-white/5"
+            >
+              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Register Node <ArrowRight className="w-5 h-5" /></>}
             </button>
           </form>
 
-          <p className="text-center text-slate-500 text-sm mt-6">
-            Already have an account?{' '}
-            <Link href="/login" className="text-indigo-400 hover:text-indigo-300 font-medium">Sign in</Link>
-          </p>
+          <div className="mt-8 pt-8 border-t border-white/5 text-center">
+            <p className="text-slate-500 text-xs font-medium">
+              Already synchronized?{' '}
+              <Link href="/login" className="text-white hover:text-indigo-400 transition-colors font-bold">
+                Access Core
+              </Link>
+            </p>
+          </div>
+        </motion.div>
+        
+        <div className="mt-10 flex items-center justify-center gap-4 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-700">
+          <span className="flex items-center gap-1.5"><Shield className="w-3 h-3" /> Quantum Encrypted</span>
+          <span className="w-1 h-1 rounded-full bg-slate-800" />
+          <span className="flex items-center gap-1.5"><Cpu className="w-3 h-3" /> Local Persistence</span>
         </div>
       </div>
     </div>

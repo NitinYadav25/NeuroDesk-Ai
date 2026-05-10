@@ -64,8 +64,9 @@ export default function DocumentsPage() {
       })
       toast.success(`"${res.data.document.title}" uploaded! Processing...`)
       setDocuments(prev => [res.data.document, ...prev])
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Upload failed')
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Upload failed'
+      toast.error(errorMessage)
     } finally { setUploading(false); setUploadProgress(0) }
   }
 
@@ -111,7 +112,7 @@ export default function DocumentsPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-linear-to-br from-emerald-600 to-teal-600 flex items-center justify-center">
               <FileText className="w-6 h-6 text-white" />
             </div>
             Documents
@@ -133,7 +134,7 @@ export default function DocumentsPage() {
               <Loader2 className="w-10 h-10 text-indigo-400 animate-spin mx-auto mb-4" />
               <p className="text-slate-400 mb-3">Uploading…</p>
               <div className="w-full bg-slate-800 rounded-full h-2">
-                <div className="bg-gradient-to-r from-indigo-600 to-violet-600 h-2 rounded-full transition-all" style={{ width: `${uploadProgress}%` }} />
+                <div className="bg-linear-to-r from-indigo-600 to-violet-600 h-2 rounded-full transition-all" style={{ width: `${uploadProgress}%` }} />
               </div>
               <p className="text-xs text-slate-600 mt-2">{uploadProgress}%</p>
             </div>

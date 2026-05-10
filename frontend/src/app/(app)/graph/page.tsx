@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
 import api from '@/lib/api'
-import { Network, RefreshCw, ZoomIn, ZoomOut, Maximize2, Brain, FileText, MessageSquare, Cpu } from 'lucide-react'
+import { Network, ZoomIn, ZoomOut, Maximize2, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface GraphNode {
@@ -44,23 +44,8 @@ export default function GraphPage() {
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const animFrameRef = useRef<number>(0)
-  const isDraggingRef = useRef(false)
-  const lastPanRef = useRef({ x: 0, y: 0 })
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 })
   const containerRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    loadGraph()
-    const handleResize = () => {
-      if (containerRef.current) {
-        setDimensions({ width: containerRef.current.clientWidth, height: containerRef.current.clientHeight })
-      }
-    }
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
 
   const loadGraph = async () => {
     setLoading(true)
@@ -81,6 +66,18 @@ export default function GraphPage() {
     } catch { toast.error('Failed to load graph') }
     finally { setLoading(false) }
   }
+
+  useEffect(() => {
+    loadGraph()
+    const handleResize = () => {
+      if (containerRef.current) {
+        setDimensions({ width: containerRef.current.clientWidth, height: containerRef.current.clientHeight })
+      }
+    }
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   // Force-directed layout simulation
   useEffect(() => {
@@ -225,7 +222,7 @@ export default function GraphPage() {
       {/* Header */}
       <div className="px-6 py-4 border-b border-[rgba(99,102,241,0.1)] flex items-center gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center">
+          <div className="w-9 h-9 rounded-xl bg-linear-to-br from-violet-600 to-indigo-600 flex items-center justify-center">
             <Network className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -285,7 +282,7 @@ export default function GraphPage() {
                 <div className="mt-2">
                   <div className="text-xs text-slate-600 mb-1">Importance</div>
                   <div className="w-full bg-slate-800 rounded-full h-1.5">
-                    <div className="h-1.5 rounded-full bg-gradient-to-r from-indigo-600 to-violet-600"
+                    <div className="h-1.5 rounded-full bg-linear-to-r from-indigo-600 to-violet-600"
                       style={{ width: `${(selectedNode.importance || 0.5) * 100}%` }} />
                   </div>
                   <div className="text-xs text-slate-600 mt-1">{Math.round((selectedNode.importance || 0.5) * 100)}%</div>

@@ -17,8 +17,14 @@ class AIService {
       console.log('✅ Ollama connected successfully');
     } catch {
       this.ollamaAvailable = false;
-      console.log('⚠️  Ollama unavailable - will use cloud fallback');
+      console.log('⚠️  Ollama unavailable - using cloud fallback');
     }
+    
+    // Debug cloud keys
+    if (GROQ_API_KEY) console.log('✅ Groq API Key detected');
+    else console.log('❌ Groq API Key missing');
+    if (HF_API_KEY) console.log('✅ HuggingFace API Key detected');
+    else console.log('❌ HuggingFace API Key missing');
   }
 
   async generateEmbedding(text) {
@@ -65,30 +71,40 @@ class AIService {
       ? [{ role: 'system', content: systemPrompt }, ...messages]
       : messages;
 
+    const requestedModel = model || this.defaultModel;
+
     // Try Ollama
     if (this.ollamaAvailable) {
       try {
-        const res = await axios.post(`${OLLAMA_URL}/api/chat`, {
-          model: model || this.defaultModel,
-          messages: fullMessages,
-          stream: true
-        }, { responseType: 'stream', timeout: 60000 });
+        // Verify model exists first to avoid long timeouts/errors
+        const modelsRes = await axios.get(`${OLLAMA_URL}/api/tags`, { timeout: 2000 });
+        const exists = modelsRes.data.models?.some(m => m.name.split(':')[0] === requestedModel.split(':')[0]);
+        
+        if (exists) {
+          const res = await axios.post(`${OLLAMA_URL}/api/chat`, {
+            model: requestedModel,
+            messages: fullMessages,
+            stream: true
+          }, { responseType: 'stream', timeout: 60000 });
 
-        let buffer = '';
-        for await (const chunk of res.data) {
-          buffer += chunk.toString();
-          const lines = buffer.split('\n');
-          buffer = lines.pop();
-          for (const line of lines) {
-            if (!line.trim()) continue;
-            try {
-              const data = JSON.parse(line);
-              if (data.message?.content) yield data.message.content;
-              if (data.done) return;
-            } catch {}
+          let buffer = '';
+          for await (const chunk of res.data) {
+            buffer += chunk.toString();
+            const lines = buffer.split('\n');
+            buffer = lines.pop();
+            for (const line of lines) {
+              if (!line.trim()) continue;
+              try {
+                const data = JSON.parse(line);
+                if (data.message?.content) yield data.message.content;
+                if (data.done) return;
+              } catch {}
+            }
           }
+          return;
+        } else {
+          console.log(`⚠️  Ollama model "${requestedModel}" not found, falling back to cloud...`);
         }
-        return;
       } catch (err) {
         console.log('Ollama stream error, falling back:', err.message);
       }
@@ -97,8 +113,9 @@ class AIService {
     // Groq fallback
     if (GROQ_API_KEY) {
       try {
+        console.log('☁️  Attempting Groq fallback (llama-3.3-70b-versatile)...');
         const res = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-          model: 'mixtral-8x7b-32768',
+          model: 'llama-3.3-70b-versatile',
           messages: fullMessages,
           stream: true,
           max_tokens: 2048
@@ -114,8 +131,9 @@ class AIService {
           const lines = buffer.split('\n');
           buffer = lines.pop();
           for (const line of lines) {
-            if (!line.startsWith('data: ')) continue;
-            const data = line.slice(6);
+            const cleanLine = line.trim();
+            if (!cleanLine.startsWith('data: ')) continue;
+            const data = cleanLine.slice(6).trim();
             if (data === '[DONE]') return;
             try {
               const parsed = JSON.parse(data);
@@ -126,13 +144,14 @@ class AIService {
         }
         return;
       } catch (err) {
-        console.log('Groq error, falling back:', err.message);
+        console.error('❌ Groq error:', err.response?.data || err.message);
       }
     }
 
     // HuggingFace fallback (non-streaming)
     if (HF_API_KEY) {
       try {
+        console.log('☁️  Attempting HuggingFace fallback...');
         const prompt = fullMessages.map(m => `${m.role}: ${m.content}`).join('\n') + '\nassistant:';
         const res = await axios.post(
           'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2',
@@ -143,7 +162,7 @@ class AIService {
         yield text;
         return;
       } catch (err) {
-        console.log('HF error:', err.message);
+        console.error('❌ HF error:', err.response?.data || err.message);
       }
     }
 
@@ -157,6 +176,10 @@ class AIService {
         const res = await axios.get(`${OLLAMA_URL}/api/tags`, { timeout: 5000 });
         res.data.models?.forEach(m => models.push({ name: m.name, source: 'ollama', size: m.size }));
       } catch {}
+    }
+    // Add cloud models if API keys are present
+    if (GROQ_API_KEY) {
+      models.push({ name: 'llama-3.3-70b (Groq)', source: 'cloud', size: 'Cloud' });
     }
     return models;
   }

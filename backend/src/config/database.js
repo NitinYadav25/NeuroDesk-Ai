@@ -97,11 +97,21 @@ const initializeDatabase = async () => {
         created_at TIMESTAMP DEFAULT NOW()
       );
 
+      CREATE TABLE IF NOT EXISTS document_chunks (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        document_id UUID REFERENCES documents(id) ON DELETE CASCADE,
+        chunk_index INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        metadata JSONB DEFAULT '{}'::jsonb,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+
       CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id);
       CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON conversations(user_id);
       CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);
       CREATE INDEX IF NOT EXISTS idx_notes_user_id ON notes(user_id);
       CREATE INDEX IF NOT EXISTS idx_memory_user_id ON memory_items(user_id);
+      CREATE INDEX IF NOT EXISTS idx_chunks_document_id ON document_chunks(document_id);
     `);
     console.log('✅ Database initialized successfully');
   } catch (err) {
