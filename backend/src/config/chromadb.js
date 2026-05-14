@@ -5,7 +5,30 @@ const COLLECTION_NAME = 'neurodesk_documents';
 
 class ChromaService {
   constructor() {
-    this.client = new ChromaClient({ path: CHROMA_URL });
+    const host = process.env.CHROMA_HOST || (process.env.CHROMA_URL ? new URL(process.env.CHROMA_URL).hostname : 'localhost');
+    const isCloud = host.includes('trychroma.com');
+    
+    const config = {
+      host: host,
+      port: process.env.CHROMA_PORT ? parseInt(process.env.CHROMA_PORT) : 
+            (isCloud ? 443 : (process.env.CHROMA_URL ? parseInt(new URL(process.env.CHROMA_URL).port) : 8000)),
+      tenant: process.env.CHROMA_TENANT || 'default_tenant',
+      database: process.env.CHROMA_DATABASE || 'default_database'
+    };
+
+    if (isCloud || process.env.CHROMA_API_KEY || config.port === 443) {
+      config.ssl = true;
+    }
+
+    if (process.env.CHROMA_API_KEY) {
+      // Use headers instead of deprecated auth
+      config.headers = {
+        "Authorization": `Bearer ${process.env.CHROMA_API_KEY}`,
+        "X-Chroma-Token": process.env.CHROMA_API_KEY
+      };
+    }
+
+    this.client = new ChromaClient(config);
     this.collection = null;
     this.available = false;
   }
@@ -24,6 +47,8 @@ class ChromaService {
 
   async ensureCollection() {
     try {
+      // In cloud, we need to make sure we are using the right database
+      // The JS client 0.4+ supports passing database to getOrCreateCollection
       this.collection = await this.client.getOrCreateCollection({
         name: COLLECTION_NAME,
         metadata: { "description": "NeuroDesk AI document embeddings" }

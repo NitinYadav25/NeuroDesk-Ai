@@ -15,6 +15,7 @@ interface AuthState {
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
   register: (email: string, username: string, password: string) => Promise<void>
+  loginWithGoogle: (idToken: string, captchaToken: string) => Promise<void>
   logout: () => void
   setUser: (user: User) => void
 }
@@ -59,6 +60,24 @@ export const useAuthStore = create<AuthState>()(
             throw err
           }
           throw new Error('Registration failed')
+        }
+      },
+      loginWithGoogle: async (idToken, captchaToken) => {
+        set({ isLoading: true })
+        try {
+          const res = await api.post('/auth/google', { idToken, captchaToken })
+          const { token, user } = res.data
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('nd_token', token)
+            localStorage.setItem('nd_user', JSON.stringify(user))
+          }
+          set({ user, token, isLoading: false })
+        } catch (err: unknown) {
+          set({ isLoading: false })
+          if (err instanceof Error) {
+            throw err
+          }
+          throw new Error('Google login failed')
         }
       },
       logout: () => {

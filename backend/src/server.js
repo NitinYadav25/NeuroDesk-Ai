@@ -62,14 +62,24 @@ const startServer = async () => {
   const { initializeDatabase } = require('./config/database');
   const aiService = require('./services/aiService');
   const chromaService = require('./config/chromadb');
+  const neo4jService = require('./config/neo4j');
+  const redisService = require('./config/redis');
+  const storageService = require('./services/storageService');
+  const { initializeFirebase } = require('./config/firebase');
+  const initializeKeepAlive = require('./services/keepAliveService');
 
   await initializeDatabase();
+  await initializeFirebase();
+  initializeKeepAlive();
   await aiService.initialize();
   await chromaService.initialize();
+  await neo4jService.initialize();
+  await redisService.initialize();
+  await storageService.initialize();
 
   app.listen(PORT, () => {
     console.log(`\n🚀 NeuroDesk AI Backend running on http://localhost:${PORT}`);
-    console.log(`📡 AI Status: Ollama=${aiService.ollamaAvailable ? '✅' : '❌'} ChromaDB=${chromaService.available ? '✅' : '❌'}`);
+    console.log(`📡 AI Status: Ollama=${aiService.ollamaAvailable ? '✅' : '❌'} ChromaDB=${chromaService.available ? '✅' : '❌'} Neo4j=${neo4jService.available ? '✅' : '❌'} Redis=${redisService.available ? '✅' : '❌'}`);
     console.log(`🔑 Cloud Fallback: Groq=${!!process.env.GROQ_API_KEY ? '✅' : '❌'} HuggingFace=${!!process.env.HF_API_KEY ? '✅' : '❌'}\n`);
   });
 };

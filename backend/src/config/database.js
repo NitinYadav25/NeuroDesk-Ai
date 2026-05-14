@@ -32,8 +32,9 @@ const initializeDatabase = async () => {
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         email VARCHAR(255) UNIQUE NOT NULL,
         username VARCHAR(100) NOT NULL,
-        password_hash VARCHAR(255) NOT NULL,
+        password_hash VARCHAR(255),
         avatar_url TEXT,
+        firebase_uid VARCHAR(255) UNIQUE,
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW(),
         preferences JSONB DEFAULT '{}'::jsonb
@@ -112,6 +113,15 @@ const initializeDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_notes_user_id ON notes(user_id);
       CREATE INDEX IF NOT EXISTS idx_memory_user_id ON memory_items(user_id);
       CREATE INDEX IF NOT EXISTS idx_chunks_document_id ON document_chunks(document_id);
+
+      -- Ensure existing table is updated for Google Auth
+      ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='firebase_uid') THEN
+          ALTER TABLE users ADD COLUMN firebase_uid VARCHAR(255) UNIQUE;
+        END IF;
+      END $$;
     `);
     console.log('✅ Database initialized successfully');
   } catch (err) {

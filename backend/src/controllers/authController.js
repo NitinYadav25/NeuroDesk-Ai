@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
+const { admin } = require('../config/firebase');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'neurodesk-ai-secret-key-change-in-production';
 const JWT_EXPIRY = process.env.JWT_EXPIRY || '7d';
@@ -93,6 +94,71 @@ class AuthController {
       res.json({ user: { id: user.id, email: user.email, username: user.username, created_at: user.created_at } });
     } catch (err) {
       res.status(500).json({ error: 'Failed to get profile' });
+    }
+  }
+
+  async googleLogin(req, res) {
+    try {
+      const { idToken, captchaToken } = req.body;
+      if (!idToken) return res.status(400).json({ error: 'ID Token required' });
+      if (!captchaToken) return res.status(400).json({ error: 'Security verification required' });
+
+      // Verify reCAPTCHA
+      try {
+        const axios = require('axios');
+        const secretKey = process.env.RECAPTCHA_SECRET_KEY;
+        const verificationUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${captchaToken}`;
+        const response = await axios.post(verificationUrl);
+        
+        if (!response.data.success) {
+          return res.status(400).json({ error: 'Security verification failed. Please try again.' });
+        }
+      } catch (captchaErr) {
+        console.error('reCAPTCHA error:', captchaErr);
+        return res.status(500).json({ error: 'Verification service error' });
+      }
+
+      // Verify the ID token using Firebase Admin
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      const { email, name, picture, uid } = decodedToken;
+
+      let user = null;
+      try {
+        const { pool } = require('../config/database');
+        // Check if user exists by email
+        const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+        user = result.rows[0];
+
+        if (!user) {
+          // Create new user if they don't exist
+          const username = name ? name.toLowerCase().replace(/\s+/g, '_') : email.split('@')[0];
+          const newUser = await pool.query(
+            'INSERT INTO users (email, username, avatar_url, firebase_uid) VALUES ($1, $2, $3, $4) RETURNING id, email, username, created_at',
+            [email, username, picture, uid]
+          );
+          user = newUser.rows[0];
+        }
+      } catch (dbErr) {
+        // Fallback to in-memory if DB fails
+        user = inMemoryUsers.find(u => u.email === email);
+        if (!user) {
+          user = { 
+            id: uuidv4(), 
+            email, 
+            username: name || email.split('@')[0], 
+            avatar_url: picture,
+            firebase_uid: uid,
+            created_at: new Date() 
+          };
+          inMemoryUsers.push(user);
+        }
+      }
+
+      const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: JWT_EXPIRY });
+      return res.json({ token, user: { id: user.id, email: user.email, username: user.username, avatar_url: user.avatar_url } });
+    } catch (err) {
+      console.error('Google login error:', err);
+      res.status(401).json({ error: 'Invalid Google token' });
     }
   }
 }

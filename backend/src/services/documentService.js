@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const aiService = require('./aiService');
 const chromaService = require('../config/chromadb');
+const graphService = require('./graphService');
 const { pool } = require('../config/database');
 const { v4: uuidv4 } = require('uuid');
 
@@ -114,6 +115,13 @@ class DocumentService {
         }
 
         await chromaService.addDocuments(documents);
+        
+        // Extract and Store Knowledge Graph Data (Async)
+        graphService.extractAndStoreGraph(batchChunks.join('\n'), { 
+          document_id: job.documentId, 
+          user_id: job.userId 
+        }).catch(e => console.error('Graph extraction error:', e));
+
         chunksProcessed += batchChunks.length;
         console.log(`  ✅ Batch ${Math.floor(i / BATCH_SIZE) + 1} done (${chunksProcessed}/${chunks.length})`);
         

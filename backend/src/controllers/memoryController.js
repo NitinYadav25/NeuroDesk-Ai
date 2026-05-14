@@ -1,4 +1,5 @@
 const aiService = require('../services/aiService');
+const graphService = require('../services/graphService');
 const { v4: uuidv4 } = require('uuid');
 
 // In-memory memory store
@@ -64,49 +65,25 @@ class MemoryController {
 
   async getGraphData(req, res) {
     try {
-      // Generate graph data from documents and memory
-      const nodes = [];
-      const edges = [];
-      const nodeMap = new Map();
+      const graphData = await graphService.getGraphData();
+      
+      // Transform for frontend force-graph if needed
+      const nodes = graphData.nodes.map(n => ({
+        id: n.id,
+        label: n.id,
+        type: n.type,
+        importance: 0.8
+      }));
+      
+      const edges = graphData.links.map(l => ({
+        source: l.source,
+        target: l.target,
+        label: l.label
+      }));
 
-      const addNode = (id, label, type, importance = 0.5) => {
-        if (!nodeMap.has(id)) {
-          nodeMap.set(id, true);
-          nodes.push({ id, label, type, importance });
-        }
-      };
-
-      // Get documents
-      try {
-        const { pool } = require('../config/database');
-        const docs = await pool.query('SELECT id, title FROM documents WHERE user_id = $1 LIMIT 20', [req.user.userId]);
-        docs.rows.forEach(doc => addNode(doc.id, doc.title, 'document', 0.8));
-
-        const mems = await pool.query('SELECT id, content, category, importance FROM memory_items WHERE user_id = $1 LIMIT 30', [req.user.userId]);
-        mems.rows.forEach(mem => {
-          const label = mem.content.slice(0, 40) + (mem.content.length > 40 ? '...' : '');
-          addNode(mem.id, label, mem.category || 'memory', mem.importance);
-        });
-
-        const convs = await pool.query('SELECT id, title FROM conversations WHERE user_id = $1 LIMIT 10', [req.user.userId]);
-        convs.rows.forEach(conv => addNode(conv.id, conv.title || 'Conversation', 'conversation', 0.6));
-      } catch {
-        for (const [, item] of inMemoryMemory) {
-          if (item.user_id === req.user.userId) {
-            const label = item.content.slice(0, 40) + '...';
-            addNode(item.id, label, item.category || 'memory', item.importance);
-          }
-        }
-      }
-
-      // Create edges based on categories
-      const nodeList = nodes;
-      for (let i = 0; i < nodeList.length; i++) {
-        for (let j = i + 1; j < nodeList.length; j++) {
-          if (nodeList[i].type === nodeList[j].type && Math.random() > 0.6) {
-            edges.push({ source: nodeList[i].id, target: nodeList[j].id, weight: Math.random() });
-          }
-        }
+      // Fallback to dummy data if graph is empty
+      if (nodes.length === 0) {
+        nodes.push({ id: 'core', label: 'Neural Core', type: 'system', importance: 1 });
       }
 
       res.json({ nodes, edges });
@@ -120,11 +97,17 @@ class MemoryController {
       const ollamaStatus = await aiService.checkOllamaStatus();
       const models = await aiService.getAvailableModels();
       const chromaService = require('../config/chromadb');
+      const neo4jService = require('../config/neo4j');
+      const redisService = require('../config/redis');
+      const storageService = require('../services/storageService');
       
       res.json({
         status: {
           ollama: { available: ollamaStatus, models },
           chroma: { available: chromaService.available },
+          neo4j: { available: neo4jService.available },
+          redis: { available: redisService.available },
+          storage: { type: storageService.useFirebase ? 'firebase' : 'local' },
           groq: { configured: !!process.env.GROQ_API_KEY },
           huggingface: { configured: !!process.env.HF_API_KEY }
         }
